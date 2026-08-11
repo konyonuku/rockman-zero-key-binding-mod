@@ -1,0 +1,79 @@
+{
+  "_comment": "Slot map for IconFont.arc / btn_icon_pcb_00_ID_HQ (512x512, BC3). Cell (col,row) covers pixel rect (col*64, row*64, 64, 64). The game addresses cells through GFD icon fonts (btn_icon_pcb_type1 = Zero, type2 = ZX, launcher = launcher UI); a glyph's packed field decodes as x=((v>>12)&0xFFF)*16, y=((v>>24)&0xFF)*16. The mod only replaces cell pixels and leaves the GFD files untouched.",
+  "atlas": { "width": 512, "height": 512, "cell": 64, "format": "BC3/DXT5", "channels": "G = luminance, A = alpha (R/B are constant 123 and ignored)" },
+  "art": {
+    "single_keycap": { "offset": [10, 10], "size": [44, 44] },
+    "wide_small": { "comment": "Short wide keycaps such as Space and Tab", "size_example_space": [43, 22] },
+    "enter": { "comment": "Enter has a stepped shape, wider on top; cell (6,4)" }
+  },
+  "cells": {
+    "W":      { "col": 0, "row": 0, "kind": "single" },
+    "A":      { "col": 1, "row": 0, "kind": "single" },
+    "S":      { "col": 2, "row": 0, "kind": "single" },
+    "D":      { "col": 3, "row": 0, "kind": "single" },
+    "WASD_CLUSTER": { "col": 4, "row": 0, "kind": "cluster4", "members": { "up": "W", "left": "A", "down": "S", "right": "D" } },
+    "WS_PAIR":      { "col": 5, "row": 0, "kind": "pair_v",   "members": { "up": "W", "down": "S" } },
+    "AD_PAIR":      { "col": 6, "row": 0, "kind": "pair_h",   "members": { "left": "A", "right": "D" } },
+
+    "UP":     { "col": 0, "row": 1, "kind": "single" },
+    "LEFT":   { "col": 1, "row": 1, "kind": "single" },
+    "RIGHT":  { "col": 2, "row": 1, "kind": "single" },
+    "DOWN":   { "col": 3, "row": 1, "kind": "single" },
+    "ARROW_CLUSTER": { "col": 4, "row": 1, "kind": "cluster4", "members": { "up": "UP", "left": "LEFT", "down": "DOWN", "right": "RIGHT" } },
+    "UPDOWN_PAIR":   { "col": 5, "row": 1, "kind": "pair_v",   "members": { "up": "UP", "down": "DOWN" } },
+    "LEFTRIGHT_PAIR":{ "col": 6, "row": 1, "kind": "pair_h",   "members": { "left": "LEFT", "right": "RIGHT" } },
+
+    "K":      { "col": 0, "row": 2, "kind": "single" },
+    "M":      { "col": 1, "row": 2, "kind": "single" },
+    "COMMA":  { "col": 2, "row": 2, "kind": "single" },
+    "PERIOD": { "col": 3, "row": 2, "kind": "single" },
+    "KM_CLUSTER": { "col": 4, "row": 2, "kind": "cluster4", "members": { "up": "K", "left": "M", "down": "COMMA", "right": "PERIOD" } },
+    "KCOMMA_PAIR":  { "col": 5, "row": 2, "kind": "pair_v", "members": { "up": "K", "down": "COMMA" } },
+    "MPERIOD_PAIR": { "col": 6, "row": 2, "kind": "pair_h", "members": { "left": "M", "right": "PERIOD" } },
+
+    "I":      { "col": 0, "row": 3, "kind": "single" },
+    "J":      { "col": 1, "row": 3, "kind": "single" },
+    "U":      { "col": 2, "row": 3, "kind": "single" },
+    "O":      { "col": 3, "row": 3, "kind": "single" },
+    "Z":      { "col": 4, "row": 3, "kind": "single" },
+    "X":      { "col": 5, "row": 3, "kind": "single" },
+    "C":      { "col": 6, "row": 3, "kind": "single" },
+    "F":      { "col": 7, "row": 3, "kind": "single" },
+
+    "N7":     { "col": 0, "row": 4, "kind": "single" },
+    "N8":     { "col": 1, "row": 4, "kind": "single" },
+    "N9":     { "col": 2, "row": 4, "kind": "single" },
+    "ESC":    { "col": 3, "row": 4, "kind": "single" },
+    "SPACE":  { "col": 4, "row": 4, "kind": "single_wide" },
+    "TAB":    { "col": 5, "row": 4, "kind": "single_wide" },
+    "ENTER":  { "col": 6, "row": 4, "kind": "single_enter" }
+  },
+  "rebindable": {
+    "_comment": "Keys Layout A actually uses (Zero and ZX share the option). W/I/J/U/O/7/8/9 are Layout B only and stay untouched. Cluster and pair cells are regenerated from their members' current bindings; members that are not rebindable keep their original art.",
+    "keys": ["UP", "DOWN", "LEFT", "RIGHT", "A", "S", "D", "C", "F", "X", "Z", "K", "M", "COMMA", "PERIOD", "TAB", "ESC", "SPACE", "ENTER"],
+    "derived_cells": ["ARROW_CLUSTER", "UPDOWN_PAIR", "LEFTRIGHT_PAIR", "KM_CLUSTER", "KCOMMA_PAIR", "MPERIOD_PAIR", "WASD_CLUSTER", "WS_PAIR", "AD_PAIR"]
+  },
+  "gfd_glyphs": {
+    "_comment": "Reference only: glyph character -> cell label per icon font. UI text draws an icon by using these characters. The mod does not modify these files; the table is for tracing a wrong icon back to its font and glyph.",
+    "type1_zero": {
+      "0": "N7", "1": "N9", "2": "ARROW_CLUSTER", "4": "ENTER", "5": "WASD_CLUSTER",
+      "6": "ESC", "7": "TAB", "8": "S", "9": "W", "A": "N8", "B": "SPACE",
+      "C": "LEFT", "D": "RIGHT", "J": "DOWN", "K": "UP", "L": "U", "R": "O",
+      "S": "WS_PAIR", "T": "AD_PAIR", "U": "A", "V": "D", "X": "J", "Y": "I"
+    },
+    "type2_zx": {
+      "0": "F", "1": "Z", "2": "KM_CLUSTER", "4": "ENTER", "5": "ARROW_CLUSTER",
+      "6": "ESC", "7": "TAB", "8": "DOWN", "9": "UP", "A": "A", "B": "SPACE",
+      "C": "M", "D": "PERIOD", "J": "COMMA", "K": "K", "L": "D", "R": "C",
+      "S": "UPDOWN_PAIR", "T": "LEFTRIGHT_PAIR", "U": "LEFT", "V": "RIGHT", "X": "S", "Y": "X"
+    },
+    "launcher": {
+      "_comment": "27 glyphs. The duplicate Z entries are a parser approximation; not needed by the mod.",
+      "0": "N8", "1": "N9", "2": "KM_CLUSTER", "3": "ARROW_CLUSTER", "4": "Z", "5": "WASD_CLUSTER",
+      "7": "TAB", "8": "S", "9": "W", "A": "ESC", "B": "ENTER", "C": "M", "D": "PERIOD",
+      "E": "UPDOWN_PAIR", "F": "LEFTRIGHT_PAIR", "G": "LEFT", "H": "RIGHT", "L": "U", "R": "O",
+      "S": "WS_PAIR", "T": "AD_PAIR", "U": "A", "V": "D", "X": "J", "Y": "I",
+      "Z_1": "UP", "Z_2": "DOWN"
+    }
+  }
+}
