@@ -42,6 +42,8 @@ __pycache__/
 .venv/
 venv/
 
+# test for mod
+test/
 
 
 # Local only
