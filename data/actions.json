@@ -1,0 +1,34 @@
+{
+  "_comment": "What each Layout A key does, per game. The collection ships two games on the same layout but the same key does different things in each, so the binding UI shows both columns and can switch between them. 'key' is the stock Layout A key and doubles as the binding id; 'dik' is its DirectInput scancode. Keys in the same 'group' share one atlas cluster icon but are bound individually.",
+  "games": { "zero": "Mega Man Zero", "zx": "Mega Man ZX" },
+  "bindings": [
+    { "key": "UP",     "dik": 200, "group": "dpad",   "zero": "Navigate Menu / Move Character (Up)",    "zx": "Navigate Menu / Move Character (Up)" },
+    { "key": "DOWN",   "dik": 208, "group": "dpad",   "zero": "Navigate Menu / Move Character (Down)",  "zx": "Navigate Menu / Move Character (Down)" },
+    { "key": "LEFT",   "dik": 203, "group": "dpad",   "zero": "Navigate Menu / Move Character (Left)",  "zx": "Navigate Menu / Move Character (Left)" },
+    { "key": "RIGHT",  "dik": 205, "group": "dpad",   "zero": "Navigate Menu / Move Character (Right)", "zx": "Navigate Menu / Move Character (Right)" },
+
+    { "key": "SPACE",  "dik": 57,  "group": null,     "zero": "Attack / OK on Menu",                    "zx": "Jump / Wall Jump / OK on Menu" },
+    { "key": "A",      "dik": 30,  "group": null,     "zero": "Jump / Wall Jump / BACK on Menu",        "zx": "Overdrive / BACK on Menu" },
+    { "key": "D",      "dik": 32,  "group": null,     "zero": "Dash",                                   "zx": "Dash" },
+    { "key": "C",      "dik": 46,  "group": null,     "zero": "Use Sub Weapon",                         "zx": "Sub Weapon Attack" },
+    { "key": "X",      "dik": 45,  "group": null,     "zero": null,                                     "zx": "Main Weapon Attack" },
+    { "key": "S",      "dik": 31,  "group": null,     "zero": null,                                     "zx": "Megamerge" },
+    { "key": "F",      "dik": 33,  "group": null,     "zero": null,                                     "zx": "Toggle Sub-Display On/Off" },
+
+    { "key": "Z",      "dik": 44,  "group": "touch",  "zero": null,                                     "zx": "Touch Sub-Display with Cursor" },
+    { "key": "ENTER",  "dik": 28,  "group": "touch",  "zero": null,                                     "zx": "Touch Sub-Display with Cursor" },
+
+    { "key": "K",      "dik": 37,  "group": "cursor", "zero": null,                                     "zx": "Move Sub-Display Cursor (Up)" },
+    { "key": "M",      "dik": 50,  "group": "cursor", "zero": null,                                     "zx": "Move Sub-Display Cursor (Left)" },
+    { "key": "COMMA",  "dik": 51,  "group": "cursor", "zero": null,                                     "zx": "Move Sub-Display Cursor (Down)" },
+    { "key": "PERIOD", "dik": 52,  "group": "cursor", "zero": null,                                     "zx": "Move Sub-Display Cursor (Right)" },
+
+    { "key": "TAB",    "dik": 15,  "group": null,     "zero": "Open/Close In-game Options",             "zx": "Open/Close In-game Options" },
+    { "key": "ESC",    "dik": 1,   "group": null,     "zero": "Start Game / Open Sub-screen / Skip Movie", "zx": "Start Game / Open Sub-screen / Skip Movie" }
+  ],
+  "groups": {
+    "dpad":   { "icon": "ARROW_CLUSTER", "members": { "up": "UP", "down": "DOWN", "left": "LEFT", "right": "RIGHT" } },
+    "cursor": { "icon": "KM_CLUSTER",    "members": { "up": "K", "down": "COMMA", "left": "M", "right": "PERIOD" } },
+    "touch":  { "icon": null,            "members": {} }
+  }
+}
