@@ -3,6 +3,7 @@
 // later step) to write the icon atlas the loader is about to scan for.
 
 #include "config.h"
+#include "icons.h"
 #include "input_hook.h"
 #include "keys.h"
 #include "log.h"
@@ -70,4 +71,8 @@ extern "C" __declspec(dllexport) void mod_open() {
         Log("input hook failed to install");
     else
         Log("input hook installed");
+
+    // The loader scans this mod folder for asset overrides as soon as we
+    // return, so the atlas has to be on disk before then.
+    IconsBuild(g_modDir, g_cfg);
 }
