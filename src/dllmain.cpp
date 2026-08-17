@@ -1,11 +1,14 @@
 // Entry point of the KeyRebind mod. The loader calls mod_open() while the game
-// window is still being created, which is early enough to hook input and (in a
-// later step) to write the icon atlas the loader is about to scan for.
+// window is still being created, which is early enough to show the binding
+// window, hook the keyboard, and write the icon atlas the loader is about to
+// scan for.
 
 #include "config.h"
+#include "gui.h"
 #include "icons.h"
 #include "input_hook.h"
 #include "keys.h"
+#include "loader.h"
 #include "log.h"
 
 #include <windows.h>
@@ -42,10 +45,18 @@ extern "C" __declspec(dllexport) void mod_open() {
     LogInit(path);
 
     BuildModPath(path, L"keybind.toml");
-    if (!ConfigLoad(path, g_cfg)) {
+    bool hadConfig = ConfigLoad(path, g_cfg);
+    if (!hadConfig) {
         Log("no keybind.toml yet, writing defaults");
         ConfigSave(path, g_cfg);
     }
+
+    // Whether the player has just switched this mod on, which is one of the
+    // moments the binding window should appear.
+    int wasOn = LoaderEnabledLastLaunch(g_modDir);
+    Log("previous launch had this mod %s",
+        wasOn == kLoaderWasOn ? "enabled" :
+        wasOn == kLoaderWasOff ? "disabled (switched on since)" : "unknown");
 
     unsigned char clash = 0;
     if (!ConfigValidate(g_cfg, &clash)) {
@@ -53,6 +64,20 @@ extern "C" __declspec(dllexport) void mod_open() {
         Log("config has %s bound twice, falling back to defaults",
             name ? name : "a key");
         ConfigDefaults(g_cfg);
+    }
+
+    // Three moments call for the binding window: the mod has never been set up,
+    // the player asked to see it again, or the mod has just been switched on.
+    bool justEnabled = wasOn == kLoaderWasOff;
+    if (!hadConfig || g_cfg.showGui || justEnabled) {
+        Log("opening the binding window (%s)",
+            !hadConfig ? "first run" : justEnabled ? "just switched on" : "asked for");
+        if (GuiRun(g_cfg)) {
+            ConfigSave(path, g_cfg);
+            Log("settings applied");
+        } else {
+            Log("window closed without applying, keeping the old settings");
+        }
     }
 
     int changed = 0;

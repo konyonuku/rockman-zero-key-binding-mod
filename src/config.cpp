@@ -1,5 +1,6 @@
 #include "config.h"
 #include "keys.h"
+#include "strings.h"
 
 #include <windows.h>
 #include <stdio.h>
@@ -11,7 +12,11 @@ void ConfigDefaults(Config& cfg) {
         cfg.bind[kGameKeys[i]] = kGameKeys[i];
     cfg.showGui = true;
     cfg.diag = false;
+    cfg.lang = kLangEnglish;
 }
+
+// The language is stored by name so the file stays readable.
+static const char* const kLangNames[kLangCount] = { "english", "japanese", "korean" };
 
 static char* Trim(char* s) {
     while (*s == ' ' || *s == '\t') ++s;
@@ -45,6 +50,13 @@ bool ConfigLoad(const wchar_t* path, Config& cfg) {
             cfg.showGui = (_stricmp(val, "true") == 0 || strcmp(val, "1") == 0);
             continue;
         }
+        if (_stricmp(key, "language") == 0) {
+            for (int i = 0; i < kLangCount; ++i) {
+                if (_stricmp(val, kLangNames[i]) == 0)
+                    cfg.lang = i;
+            }
+            continue;
+        }
         if (_stricmp(key, "diag") == 0) {
             cfg.diag = (_stricmp(val, "true") == 0 || strcmp(val, "1") == 0);
             continue;
@@ -66,7 +78,9 @@ bool ConfigSave(const wchar_t* path, const Config& cfg) {
 
     fprintf(fp, "# MZZXLC KeyRebind\n");
     fprintf(fp, "# Left side is the stock Layout A key, right side is the key you press.\n");
-    fprintf(fp, "show_gui = %s\n\n", cfg.showGui ? "true" : "false");
+    fprintf(fp, "show_gui = %s\n", cfg.showGui ? "true" : "false");
+    fprintf(fp, "language = %s\n\n",
+            kLangNames[cfg.lang >= 0 && cfg.lang < kLangCount ? cfg.lang : 0]);
     fprintf(fp, "[bindings]\n");
     for (int i = 0; i < kGameKeyCount; ++i) {
         unsigned char game = kGameKeys[i];

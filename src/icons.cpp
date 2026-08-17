@@ -4,6 +4,7 @@
 #include "atlas.h"
 #include "config.h"
 #include "keycaps.h"
+#include "loader.h"
 #include "log.h"
 #include "slots.h"
 
@@ -32,22 +33,6 @@ struct Stamp {
 void Join(wchar_t* out, const wchar_t* dir, const wchar_t* leaf) {
     wcscpy_s(out, MAX_PATH, dir);
     wcscat_s(out, MAX_PATH, leaf);
-}
-
-// The mod lives in <game>\mods\<name>, so the game root is two levels up.
-bool GameRoot(const wchar_t* modDir, wchar_t* out) {
-    wcscpy_s(out, MAX_PATH, modDir);
-    size_t n = wcslen(out);
-    if (n && out[n - 1] == L'\\')
-        out[n - 1] = 0;
-    for (int i = 0; i < 2; ++i) {
-        wchar_t* slash = wcsrchr(out, L'\\');
-        if (!slash)
-            return false;
-        *slash = 0;
-    }
-    wcscat_s(out, MAX_PATH, L"\\");
-    return true;
 }
 
 void EnsureDir(const wchar_t* path) {
@@ -113,7 +98,7 @@ bool IconsBuild(const wchar_t* modDir, const Config& cfg) {
     Join(stampPath, modDir, L"atlas.stamp");
     Join(outDir, modDir, kArcDirTail);
     Join(outPath, modDir, kArcTail);
-    if (!GameRoot(modDir, gameRoot)) {
+    if (!LoaderGameRoot(modDir, gameRoot)) {
         Log("icons: cannot locate the game folder from %S", modDir);
         return false;
     }

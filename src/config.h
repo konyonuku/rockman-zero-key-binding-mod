@@ -9,6 +9,7 @@ struct Config {
     unsigned char bind[256];
     bool showGui;           // show the binding window on the next launch
     bool diag;              // log every key the game actually receives
+    int lang;               // Lang, the language the binding window speaks
 };
 
 void ConfigDefaults(Config& cfg);               // every game key bound to itself
