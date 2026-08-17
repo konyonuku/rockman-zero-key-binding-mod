@@ -78,6 +78,59 @@ NUDGE = {
 }
 
 
+# ---- mini keycaps -----------------------------------------------------------
+# Cluster and pair cells hold small keycaps the game draws for movement groups.
+# Their artwork is recovered from the cells that share a cap shape, and each key
+# gets a small label rendered at that size; scaling the full-size cap down turns
+# the wide keys (Space, LSHIFT) into mush.
+MINI_KINDS = ["cluster4", "pair_v", "pair_h"]
+
+# src   = cells sharing this cap shape, min over them recovers the blank caps
+# face  = top-left of every slot's lettering box, all the same size per kind
+# size  = that box, w x h
+# cap_h = lettering cap height inside it
+MINI_GEOM = {
+    "cluster4": {
+        "src": [(4, 1), (4, 2)],
+        "size": (10, 11), "cap_h": 7,
+        "face": {"up": (27, 19), "left": (13, 33), "down": (27, 33), "right": (41, 33)},
+    },
+    "pair_v": {
+        "src": [(5, 0), (5, 1), (5, 2)],
+        "size": (20, 19), "cap_h": 13,
+        "face": {"up": (22, 8), "down": (22, 36)},
+    },
+    "pair_h": {
+        "src": [(6, 0), (6, 1), (6, 2)],
+        "size": (14, 15), "cap_h": 10,
+        "face": {"left": (15, 24), "right": (36, 24)},
+    },
+}
+
+# Which original cell each kind takes its arrow artwork from.
+MINI_ARROW_CELL = {"cluster4": (4, 1), "pair_v": (5, 1), "pair_h": (6, 1)}
+ARROW_SLOT = {"UP": "up", "DOWN": "down", "LEFT": "left", "RIGHT": "right"}
+
+# Two letters is all a mini cap fits.
+MINI_LABEL = dict(GLYPH_KEYS)
+MINI_LABEL.update({
+    "SPACE": "SP", "ENTER": "EN", "ESC": "ES", "TAB": "TB", "CAPSLOCK": "CL",
+    "LSHIFT": "LS", "RSHIFT": "RS", "LCTRL": "LC", "RCTRL": "RC",
+    "LALT": "LA", "RALT": "RA",
+})
+
+# Alpha at or below this is cap face, above it is lettering.
+FACE_MAX = 100
+
+# At mini sizes antialiasing thins the lettering to almost nothing - a backtick
+# nearly vanishes. This fattens the coverage the way the original small art is
+# drawn, without touching the pixels the glyph already covers fully.
+MINI_GAMMA = [min(255, round(255 * (v / 255.0) ** 0.62)) for v in range(256)]
+
+# Lettering shorter than this fraction of the cap face is grown until it reads.
+MINI_INK_MIN = 0.45
+
+
 def load_atlas(tex_path):
     tmp = os.path.join(tempfile.gettempdir(), "_keycap_atlas.png")
     tex_dds.tex_to_png(tex_path, tmp)
@@ -136,6 +189,91 @@ def widen_cap(cap_cell, new_w):
     cell = Image.new("RGBA", (CELL, CELL), (0, 0, 0, 0))
     cell.paste(out, ((CELL - new_w) // 2, SPACE_CAP[1]))
     return cell
+
+
+def blank_mini(atlas, kind):
+    """Blank mini caps: min over the sibling cells, then repair the leftovers.
+
+    The cells share a cap shape and differ only in lettering, so the minimum
+    clears most of it; where two cells ink the same pixel a ghost survives, and
+    that is refilled from the median of the row's remaining face pixels.
+    """
+    spec = MINI_GEOM[kind]
+    cells = [atlas.crop((c * CELL, r * CELL, c * CELL + CELL, r * CELL + CELL))
+             for c, r in spec["src"]]
+    g = cells[0].split()[1]
+    a = cells[0].split()[3]
+    for c in cells[1:]:
+        a = ImageChops.darker(a, c.split()[3])
+    a = a.copy()
+    px = a.load()
+    fw, fh = spec["size"]
+    for fx, fy in spec["face"].values():
+        for y in range(fy, fy + fh):
+            clean = sorted(px[x, y] for x in range(fx, fx + fw) if px[x, y] <= FACE_MAX)
+            if not clean:
+                continue
+            med = clean[len(clean) // 2]
+            for x in range(fx, fx + fw):
+                if px[x, y] > FACE_MAX:
+                    px[x, y] = med
+    return Image.merge("RGBA", (g, g, g, a))
+
+
+def ink_of(cell, blank, box):
+    """Lettering inside a box as a soft coverage mask, antialiasing kept."""
+    diff = ImageChops.subtract(cell.split()[3], blank.split()[3])
+    x, y, w, h = box
+    m = diff.crop((x, y, x + w, y + h)).point(lambda v: min(255, v * 255 // 170))
+    bb = m.point(lambda v: 255 if v > 24 else 0).getbbox()
+    return m.crop(bb) if bb else None
+
+
+def arrow_ink(atlas, kind, key):
+    """The arrow for one direction, at this kind's size where the atlas has it."""
+    slot = ARROW_SLOT[key]
+    spec = MINI_GEOM[kind]
+    if slot in spec["face"]:
+        c, r = MINI_ARROW_CELL[kind]
+        cell = atlas.crop((c * CELL, r * CELL, c * CELL + CELL, r * CELL + CELL))
+        fx, fy = spec["face"][slot]
+        return ink_of(cell, blank_mini(atlas, kind), (fx, fy) + spec["size"])
+    return None
+
+
+def mini_mask(atlas, kind, key, blank_art, arrow_full):
+    """One key's lettering for one kind of mini cap, in its slot-sized box.
+
+    The hand-tuned vertical trims are reused, scaled to the smaller cap height.
+    """
+    fw, fh = MINI_GEOM[kind]["size"]
+    box = Image.new("L", (fw, fh), 0)
+    if key in ARROW_SLOT:
+        ink = arrow_ink(atlas, kind, key)
+        if ink is None:                       # no arrow this size: shrink the big one
+            ink = arrow_full[key]
+            sc = min(fw / ink.size[0], (fh - 2) / ink.size[1])
+            ink = ink.resize((max(1, round(ink.size[0] * sc)),
+                              max(1, round(ink.size[1] * sc))), Image.LANCZOS)
+        box.paste(ink, ((fw - ink.size[0]) // 2, (fh - ink.size[1]) // 2))
+        return box
+    text = MINI_LABEL[key]
+    cap_h = MINI_GEOM[kind]["cap_h"]
+    size = size_for_cap_height(cap_h)
+    while size > 6 and ink_box(size, text)[2] - ink_box(size, text)[0] > fw:
+        size -= 1
+    # A comma or a backtick inks so little at this size that it disappears. The
+    # original small artwork draws those oversized, so grow them the same way
+    # until they read, stopping before they touch the edges of the cap face.
+    while True:
+        bb = ink_box(size + 1, text)
+        if bb[3] - bb[1] > MINI_INK_MIN * fh or bb[2] - bb[0] > fw:
+            break
+        size += 1
+    nudge = round(NUDGE.get(key, 0) * cap_h / CAP_H)
+    m = glyph_mask(text, font_at(size), (fw, fh), fw / 2,
+                   baseline=(fh + cap_h) // 2 - nudge)
+    return m.point(MINI_GAMMA)
 
 
 def font_at(size):
@@ -210,6 +348,40 @@ def glyph_mask(text, font, box, cx, baseline=None, cy=None):
     return m
 
 
+def mini_sheet(outdir, atlas, templates, minis, order):
+    """Every key drawn into every slot of every mini cap kind, for eyeballing."""
+    zoom, cols = 3, 8
+    rows = (len(order) + cols - 1) // cols
+    tiles_per = len(MINI_KINDS)
+    sheet = Image.new("RGB", (cols * CELL * zoom,
+                              tiles_per * rows * (CELL + 12) * zoom), (0, 0, 0))
+    d = ImageDraw.Draw(sheet)
+    try:
+        lf = ImageFont.truetype(r"C:\Windows\Fonts\consola.ttf", 12)
+    except Exception:
+        lf = ImageFont.load_default()
+    y0 = 0
+    for ki, kind in enumerate(MINI_KINDS):
+        tmpl = templates[ki]
+        for i, key in enumerate(order):
+            cell = tmpl.copy()
+            for slot, (fx, fy) in MINI_GEOM[kind]["face"].items():
+                fw, fh = MINI_GEOM[kind]["size"]
+                mask = Image.new("L", (CELL, CELL), 0)
+                mask.paste(minis[kind][key], (fx, fy))
+                cell = paint(cell, mask)
+            b = Image.new("RGBA", (CELL, CELL), (0, 0, 0, 255))
+            b.alpha_composite(cell)
+            cx, cy = i % cols, i // cols
+            sheet.paste(b.convert("RGB").resize((CELL * zoom, CELL * zoom), Image.NEAREST),
+                        (cx * CELL * zoom, y0 + cy * (CELL + 12) * zoom))
+            d.text((cx * CELL * zoom + 4,
+                    y0 + cy * (CELL + 12) * zoom + CELL * zoom + 2),
+                   "%s %s" % (kind[:4], key), fill=(120, 200, 255), font=lf)
+        y0 += rows * (CELL + 12) * zoom
+    sheet.save(os.path.join(outdir, "preview_mini.png"))
+
+
 def build(tex_path, outdir):
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     slots = json.load(open(os.path.join(root, "data", "slots.json"), encoding="utf-8"))
@@ -217,6 +389,8 @@ def build(tex_path, outdir):
     os.makedirs(outdir, exist_ok=True)
 
     blank_art = blank_keycap(atlas, slots)
+    blank_art_cell = Image.new("RGBA", (CELL, CELL), (0, 0, 0, 0))
+    blank_art_cell.paste(blank_art, (ART_OFF, ART_OFF))
     mod_cap = widen_cap(blank_space_cap(atlas, slots), MOD_CAP_W)
     big = font_at(size_for_cap_height(CAP_H))
 
@@ -238,40 +412,101 @@ def build(tex_path, outdir):
                           cy=label_cy - NUDGE.get(key, 0))
         tiles[key] = (paint(mod_cap, mask), "label '%s'" % text)
 
-    # ---- pack: header, fixed-size records, then interleaved G/A pixels ----
-    entries, blob = [], bytearray()
-    for key in sorted(tiles, key=lambda k: DIK[k]):
+    # ---- mini caps: one lettering mask per key, per kind of mini cap ----
+    arrow_full = {}
+    for key in ARROW_SLOT:
+        ink = ink_of(cell_of(atlas, slots, key), blank_art_cell,
+                     (ART_OFF, ART_OFF, ART, ART))
+        arrow_full[key] = ink
+    minis = {k: {key: mini_mask(atlas, k, key, blank_art, arrow_full)
+                 for key in tiles} for k in MINI_KINDS}
+    templates = [blank_mini(atlas, k) for k in MINI_KINDS]
+
+    # ---- pack: header, template offsets, per-group records, then pixels ----
+    order = sorted(tiles, key=lambda k: DIK[k])
+    blob = bytearray()
+
+    tmpl_off = []
+    for t in templates:
+        gp, ap = t.split()[1].load(), t.split()[3].load()
+        tmpl_off.append(len(blob))
+        for y in range(CELL):
+            for x in range(CELL):
+                blob += bytes((gp[x, y], ap[x, y]))
+
+    groups = []
+    entries = []
+    for key in order:                      # group 0: full-size cell art, G then A
         img, note = tiles[key]
         bb = img.split()[3].point(lambda v: 255 if v > 0 else 0).getbbox()
         x0, y0, x1, y1 = bb
         w, h = x1 - x0, y1 - y0
-        g, a = img.crop(bb).split()[1], img.crop(bb).split()[3]
-        gp, ap = g.load(), a.load()
+        gp = img.crop(bb).split()[1].load()
+        ap = img.crop(bb).split()[3].load()
         off = len(blob)
         for y in range(h):
             for x in range(w):
                 blob += bytes((gp[x, y], ap[x, y]))
         entries.append((key, DIK[key], x0, y0, w, h, off, w * h * 2, note))
+    groups.append(entries)
+
+    for kind in MINI_KINDS:                # groups 1..3: coverage masks
+        recs = []
+        for key in order:
+            m = minis[kind][key]
+            bb = m.getbbox()
+            if bb is None:
+                recs.append((key, DIK[key], 0, 0, 0, 0, 0, 0, "empty"))
+                continue
+            x0, y0, x1, y1 = bb
+            w, h = x1 - x0, y1 - y0
+            mp = m.crop(bb).load()
+            off = len(blob)
+            for y in range(h):
+                for x in range(w):
+                    blob += bytes((mp[x, y],))
+            recs.append((key, DIK[key], x0, y0, w, h, off, w * h, kind))
+        groups.append(recs)
 
     with open(os.path.join(outdir, "keycaps.bin"), "wb") as fp:
-        fp.write(struct.pack("<4sIII", b"KRKC", 1, len(entries), len(blob)))
-        for _, dik, x, y, w, h, off, ln, _ in entries:
-            fp.write(struct.pack("<HBBBBHII", dik, x, y, w, h, 0, off, ln))
+        fp.write(struct.pack("<4sIIIII", b"KRKC", 2, len(order),
+                             len(groups), len(templates), len(blob)))
+        for o in tmpl_off:
+            fp.write(struct.pack("<I", o))
+        for recs in groups:
+            for _, dik, x, y, w, h, off, ln, _ in recs:
+                fp.write(struct.pack("<HBBBBHII", dik, x, y, w, h, 0, off, ln))
         fp.write(bytes(blob))
 
     manifest = {
-        "format": "KRKC v1: header <4sIII>, then <HBBBBHII> per key "
-                  "(dik, x, y, w, h, pad, offset, length), then G/A interleaved pixels",
+        "format": "KRKC v2: header <4sIIIII> (magic, version, key_count, "
+                  "group_count, template_count, blob_size), then one u32 blob "
+                  "offset per 64x64 G/A template, then group_count x key_count "
+                  "records <HBBBBHII> (dik, x, y, w, h, pad, offset, length), "
+                  "then the pixel blob",
+        "groups": ["full"] + MINI_KINDS,
+        "group_pixels": {"full": "G/A interleaved, x/y are cell-relative",
+                         "mini": "coverage mask, x/y are relative to the slot face box"},
+        "templates": MINI_KINDS,
         "cell": CELL,
         "modifier_cap_width": MOD_CAP_W,
+        "mini_geometry": {k: {"size": MINI_GEOM[k]["size"],
+                              "cap_h": MINI_GEOM[k]["cap_h"],
+                              "face": MINI_GEOM[k]["face"]} for k in MINI_KINDS},
         "font": os.path.basename(FONT),
         "font_weight": FONT_WEIGHT,
         "keys": [{"key": k, "dik": d, "x": x, "y": y, "w": w, "h": h,
                   "offset": o, "length": l, "note": n}
                  for k, d, x, y, w, h, o, l, n in entries],
+        "mini_keys": {kind: [{"key": r[0], "x": r[2], "y": r[3], "w": r[4],
+                              "h": r[5], "offset": r[6], "length": r[7]}
+                             for r in groups[1 + i]]
+                      for i, kind in enumerate(MINI_KINDS)},
     }
     with open(os.path.join(outdir, "keycaps.json"), "w", encoding="utf-8") as fp:
         json.dump(manifest, fp, indent=1)
+
+    mini_sheet(outdir, atlas, templates, minis, order)
 
     # ---- preview sheet, composited on black so the white art is visible ----
     cols, zoom = 10, 3
@@ -297,6 +532,7 @@ def build(tex_path, outdir):
     print("%d keys -> %s" % (len(entries), outdir))
     print("  keycaps.bin  %d bytes (%d bytes of pixels)"
           % (16 + len(entries) * 16 + len(blob), len(blob)))
+    print("  mini caps: %s" % ", ".join(MINI_KINDS))
     print("  reused from the original atlas: %s" % ", ".join(REUSED))
 
 
